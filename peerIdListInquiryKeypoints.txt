@@ -1,0 +1,298 @@
+
+
+Tables being used for this Api:
+
+SECUR_PROFILE PRE 
+CEQ_HIERARCHY   referencexref
+HR_HIER_LVL_CODE referencexref
+PEND_CRED_REQUEST-------->  pend_cred_request
+
+
+
+SQL Query
+
+"    SELECT FAMILY_NME,
+        GIVEN_NME,
+        SUPVSR_USER_ID_CD,
+        SECUR_CLASS_CD
+     INTO :TB07100-FAMILY-NME
+       ,:TB07100-GIVEN-NME
+       ,:TB07100-SUPVSR-USER-ID-CD
+       ,:TB07100-SECUR-CLASS-CD
+     FROM SECUR_PROFILE
+     WHERE VISION_USER_ID_CD = :TB07100-VISION-USER-ID-CD
+     WITH UR"
+	 
+PRE call	 
+################################################################################################################3
+"    SELECT FAMILY_NME,
+        GIVEN_NME,
+        SUPVSR_USER_ID_CD,
+        USER_TYP_CD,
+        SECUR_CLASS_CD
+     INTO :TB07100-FAMILY-NME
+       ,:TB07100-GIVEN-NME
+       ,:TB07100-SUPVSR-USER-ID-CD
+       ,:TB07100-USER-TYP-CD
+       ,:TB07100-SECUR-CLASS-CD
+     FROM SECUR_PROFILE
+     WHERE VISION_USER_ID_CD = :TB07100-VISION-USER-ID-CD
+     WITH UR"
+	 
+	 
+PRE call , if we do this we dont need first one 
+#################################################################################################################
+
+"    SELECT COUNT(*)
+     INTO :HOST-SQL-COUNT
+     FROM SECUR_PROFILE
+     WHERE SUPVSR_USER_ID_CD = :TB07100-SUPVSR-USER-ID-CD
+    WITH UR"
+	
+PRE call again 
+	
+#################################################################################################################
+
+"    SELECT A.USER_HIER_LVL_CD
+       ,B.HR_HIER_CAT_CD
+       ,B.MGR_CAPABILITY_CD
+    INTO  :TB11156-USER-HIER-LVL-CD
+       ,:TB06017-HR-HIER-CAT-CD
+       ,:TB06017-MGR-CAPABILITY-CD
+    FROM CEQ_HIERARCHY A
+      ,HR_HIER_LVL_CODE B
+    WHERE A.VISION_USER_ID_CD = :TB11156-VISION-USER-ID-CD
+    AND A.USER_HIER_LVL_CD  = B.HR_HIER_LVL_CD
+    AND ((A.END_DT > :WS-91-DAYS
+           AND A.END_DT < CURRENT DATE)
+    OR (A.END_DT = '12/31/9999'))
+    AND A.EFF_DT =
+     (SELECT MAX(A.EFF_DT)
+       FROM CEQ_HIERARCHY A
+         ,HR_HIER_LVL_CODE B
+     WHERE A.VISION_USER_ID_CD = :TB11156-VISION-USER-ID-CD
+     AND A.USER_HIER_LVL_CD  = B.HR_HIER_LVL_CD
+     AND ((A.END_DT > :WS-91-DAYS
+           AND A.END_DT < CURRENT DATE)
+     OR (A.END_DT = '12/31/9999')))
+   FETCH FIRST 1 ROW ONLY
+   WITH UR"
+
+need Typedef 
+
+Mapping for CEQ_HIERARCHY 
+
+CEQ_HIERARCHY,DB_TMSTAMP,CL,2019-09-11-05.33.18.000902,DB_TMSTAMP
+CEQ_HIERARCHY,DB_USERID,CL,2019-09-11-05.33.18.000901,DB_USERID
+CEQ_HIERARCHY,DIRECT_USER_ID_CD,CL,2019-09-11-05.33.18.000897,NK1_VALUE
+CEQ_HIERARCHY,EFF_DT,CL,2019-09-11-05.33.18.000896,CK1_VALUE
+CEQ_HIERARCHY,END_DT,CL,2019-09-11-05.33.18.000900,NK3_VALUE
+CEQ_HIERARCHY,USER_HIER_LVL_CD,CL,2019-09-11-05.33.18.000899,NK2_VALUE
+CEQ_HIERARCHY,VISION_USER_ID_CD,CL,2019-09-11-05.33.18.000893,PK1_VALUE
+
+
+Mapping HR_HIER_LVL_CODE
+
+HR_HIER_LVL_CODE,DB_TMSTAMP,CL,2019-09-11-13.21.59.000680,DB_TMSTAMP
+HR_HIER_LVL_CODE,DB_USERID,CL,2019-09-11-13.21.59.000679,DB_USERID
+HR_HIER_LVL_CODE,HR_HIER_CAT_CD,CL,2019-09-11-13.21.59.000677,NK2_VALUE
+HR_HIER_LVL_CODE,HR_HIER_LVL_CD,CL,2019-09-11-13.21.59.000672,PK1_VALUE
+HR_HIER_LVL_CODE,HR_HIER_LVL_DSC,CL,2019-09-11-13.21.59.000675,NK1_VALUE
+HR_HIER_LVL_CODE,MGR_CAPABILITY_CD,CL,2019-09-11-13.21.59.000678,NK3_VALUE
+
+
+
+
+######################################################################################################################
+
+"   SELECT VISION_USER_ID_CD
+         ,FAMILY_NME
+         ,GIVEN_NME
+         ,USER_LST_USE_DT
+         ,PROF_END_DT
+    INTO :TB07100-VISION-USER-ID-CD,
+       :TB07100-FAMILY-NME,
+       :TB07100-GIVEN-NME,
+       :TB07100-USER-LST-USE-DT,
+       :TB07100-PROF-END-DT
+      FROM SECUR_PROFILE
+      WHERE SUPVSR_USER_ID_CD = :TB07100-SUPVSR-USER-ID-CD
+      AND USER_LST_USE_DT   >= :WS-91-DAYS
+      ORDER BY PROF_STAT_CD
+    FOR READ ONLY"
+	
+include PROF_STAT_CD,USER_LST_USE_DT in previous call only so we can avoid again this call so we can later order by and USER_LST_USE_DT   >= :WS-91-DAYS in java 
+#####################################################################################################################################################################
+"    SELECT 1
+     INTO :HOST-SQL-COUNT1
+     FROM SECUR_PROFILE A
+       ,PEND_CRED_REQUEST B
+     WHERE A.VISION_USER_ID_CD = B.REVIEWR_USER_ID_CD
+     AND B.REVIEWR_USER_ID_CD = :TB07100-VISION-USER-ID-CD
+     AND B.PEND_CRED_STAT_CD = 'P '
+     FETCH FIRST 1 ROWS ONLY
+    WITH UR"
+	
+We have to implement typedef here related to PEND_CRED_REQUEST with two conditions as  AND B.REVIEWR_USER_ID_CD = :TB07100-VISION-USER-ID-CD
+AND B.PEND_CRED_STAT_CD = 'P ' then we have to compare the REVIEWR_USER_ID_CD with previous PRE call result set and take the max value 
+	
+
+##########################################################################################################################
+"    SELECT COUNT(*)
+    INTO :HOST-SQL-COUNT
+    FROM SECUR_PROFILE
+    WHERE SUPVSR_USER_ID_CD = :TB07100-SUPVSR-USER-ID-CD
+     AND VISION_USER_ID_CD <> :TB07100-VISION-USER-ID-CD
+     AND PROF_STAT_CD IN ('02','04','05','03')
+    WITH UR"
+	
+* we may skipp
+########################################################################################################################
+
+"    FOR SELECT VISION_USER_ID_CD
+         ,FAMILY_NME
+         ,GIVEN_NME
+         ,SECUR_CLASS_CD
+         ,USER_LST_USE_DT
+         ,PROF_END_DT
+    INTO :TB07100-VISION-USER-ID-CD,
+       :TB07100-FAMILY-NME,
+       :TB07100-GIVEN-NME,
+       :TB07100-SECUR-CLASS-CD,
+       :TB07100-USER-LST-USE-DT,
+       :TB07100-PROF-END-DT
+      FROM SECUR_PROFILE
+      WHERE SUPVSR_USER_ID_CD = :TB07100-SUPVSR-USER-ID-CD
+       AND VISION_USER_ID_CD <> :TB07100-VISION-USER-ID-CD
+       AND USER_LST_USE_DT  >= :WS-91-DAYS
+       AND PROF_STAT_CD IN ('02','04','05','03')
+      ORDER BY PROF_STAT_CD
+    FOR READ ONLY"
+	
+we can use above call resultset and check with the additional conditions like java only 
+      WHERE 
+       AND USER_LST_USE_DT  >= :WS-91-DAYS
+	      ORDER BY PROF_STAT_CD
+
+#####################################################################################################################################
+
+
+"   SELECT 1
+    INTO :HOST-SQL-COUNT
+    FROM CEQ_HIERARCHY A
+      ,HR_HIER_LVL_CODE B
+    WHERE A.VISION_USER_ID_CD = :TB11156-VISION-USER-ID-CD
+     AND A.USER_HIER_LVL_CD = B.HR_HIER_LVL_CD
+     AND B.HR_HIER_CAT_CD = 'DRECT'
+     AND ((A.END_DT > :WS-91-DAYS
+          AND A.END_DT < CURRENT DATE)
+    OR (A.END_DT = '12/31/9999'))
+  FETCH FIRST 1 ROW ONLY
+  WITH UR"
+  
+ need to implement typedef 
+########################################################################################################################################
+
+"   SELECT DIRECT_USER_ID_CD INTO :HV-DIRECTORS-USERID
+    FROM CEQ_HIERARCHY
+    WHERE VISION_USER_ID_CD = :TB11156-VISION-USER-ID-CD
+    AND ((END_DT > :WS-91-DAYS
+           AND END_DT < CURRENT DATE)
+    OR (END_DT = '12/31/9999'))
+    AND EFF_DT =
+      (SELECT MAX(EFF_DT)
+       FROM CEQ_HIERARCHY
+      WHERE VISION_USER_ID_CD = :TB11156-VISION-USER-ID-CD
+      AND ((END_DT > :WS-91-DAYS
+           AND END_DT < CURRENT DATE)
+      OR (END_DT = '12/31/9999')))
+      FETCH FIRST 1 ROW ONLY
+      WITH UR"
+	 
+*need to implement typedef 
+	  
+	  
+############################################################################################################################################
+
+"    SELECT B.VISION_USER_ID_CD
+         ,B.FAMILY_NME
+         ,B.GIVEN_NME
+         ,B.SUPVSR_USER_ID_CD
+    INTO :TB07100-VISION-USER-ID-CD,
+       :TB07100-FAMILY-NME,
+       :TB07100-GIVEN-NME,
+       :TB07100-SUPVSR-USER-ID-CD,
+       :TB07100-PROF-END-DT
+      FROM CEQ_HIERARCHY A,
+         SECUR_PROFILE B,
+         HR_HIER_LVL_CODE C
+     WHERE A.DIRECT_USER_ID_CD = :HV-DIRECTORS-USERID
+    AND A.USER_HIER_LVL_CD = C.HR_HIER_LVL_CD
+    AND C.HR_HIER_CAT_CD = 'DRECT'
+    AND ((B.USER_LST_USE_DT > :WS-91-DAYS
+          AND B.USER_LST_USE_DT < CURRENT DATE)
+    OR (B.USER_LST_USE_DT = '12/31/9999'))
+    AND A.VISION_USER_ID_CD <> :TB11156-VISION-USER-ID-CD
+    AND A.VISION_USER_ID_CD = B.VISION_USER_ID_CD
+    AND A.EFF_DT =
+     (SELECT MAX(A.EFF_DT)
+      FROM CEQ_HIERARCHY A,
+         SECUR_PROFILE B,
+         HR_HIER_LVL_CODE C
+       WHERE A.DIRECT_USER_ID_CD = :HV-DIRECTORS-USERID
+       AND A.USER_HIER_LVL_CD = C.HR_HIER_LVL_CD
+       AND C.HR_HIER_CAT_CD = 'DRECT'
+       AND ((B.USER_LST_USE_DT > :WS-91-DAYS
+            AND B.USER_LST_USE_DT < CURRENT DATE)
+       OR (B.USER_LST_USE_DT = '12/31/9999'))
+      AND A.VISION_USER_ID_CD <> :TB11156-VISION-USER-ID-CD
+      AND A.VISION_USER_ID_CD = B.VISION_USER_ID_CD)
+    ORDER BY B.FAMILY_NME, B.GIVEN_NME"
+	
+first will make PRE call later we have to join this with the table with other two tables
+	
+####################################################################################################################################################
+
+" SELECT PEND_CRED_STAT_CD
+         ,PEND_CRED_STAT_DSC
+    INTO :TB01980-PEND-CRED-STAT-CD,
+       :TB01980-PEND-CRED-STAT-DSC
+      FROM PEND_CRED_STAT
+    FOR READ ONLY"
+	
+need to make typedef 
+	
+#############################################################################################################################################
+	
+	
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
